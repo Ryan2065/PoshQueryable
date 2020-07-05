@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "PoshQueryable": {
+      "commandName": "Executable",
+      "executablePath": "C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+      "commandLineArgs": "-NoExit -NoLogo -File C:\\Users\\Ryan2\\source\\repos\\PoshQueryable\\src\\debug.ps1",
+      "nativeDebugging": true
+    }
+  }
+}
