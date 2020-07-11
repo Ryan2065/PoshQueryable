@@ -22,7 +22,28 @@ Register-ArgumentCompleter -CommandName Search-Queryable -ParameterName Expressi
 }
 
 Write-Host "Initializing Collection"
-[System.Collections.Generic.KeyValuePair[string, int][]]$InputObjects = (1..500000).ForEach({ [System.Collections.Generic.KeyValuePair[string, int]]::new("$_", $_) })
+
+Class TypeOne{
+    [string]$Key
+}
+Class TypeTwo{
+    [TypeOne]$One
+    [int]$Count
+}
+
+[System.Collections.Generic.List[TypeTwo]]$List = New-Object System.Collections.Generic.List[TypeTwo]
+0..100 | ForEach-Object {
+    $one = [TypeOne]::new()
+    $one.Key = "a$_"
+    $two = [TypeTwo]::new()
+    $two.One = $one
+    $two.Count = $_
+    $List.Add($two)
+}
+
+Search-Queryable -inputArray $List -Expression { $p.One.key -eq 'a5' -or $p.One.Key -eq 'A6' }
+
+return
 
 Write-Host "Invoking: Where-Object"
     $Measure = Measure-Command {

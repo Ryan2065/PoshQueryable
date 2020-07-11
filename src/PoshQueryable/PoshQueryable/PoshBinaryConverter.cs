@@ -13,22 +13,36 @@ namespace PoshQueryable
         private IQueryable<T> _inputArray;
         private ParameterExpression _p;
         private BinaryExpression _binExp;
-        private Dictionary<string, BinaryExpression> _binExpDictionary;
         private SessionState _sState;
         public PoshBinaryConverter(IQueryable<T> InputArray, SessionState sState)
         {
             _inputArray = InputArray;
             _p = Expression.Parameter(typeof(T), "p");
-            _binExpDictionary = new Dictionary<string, BinaryExpression>();
             _sState = sState;
         }
-        private BinaryExpression BuildSelfContained(BinaryExpressionAst ast)
+        private Expression BuildExpression(BinaryExpressionAst ast)
         {
-            if(ast.Operator == TokenKind.Ieq)
+            var leftExpression = GetExpression(ast.Left);
+            var rightExpression = GetExpression(ast.Right);
+            switch (ast.Operator)
             {
-                return Expression.Equal(GetExpression(ast.Left), GetExpression(ast.Right));
+                case TokenKind.Ieq:
+                    if(leftExpression.Type == typeof(string) && rightExpression.Type == typeof(string))
+                    {
+                        var mi = typeof(String).GetMethods().Where(p => p.GetParameters().Count() == 3 && p.Name == "Equals").FirstOrDefault();
+                        var ordinalCase = Expression.Constant(StringComparison.OrdinalIgnoreCase);
+                        return Expression.Call(mi, new Expression[] { leftExpression, rightExpression, ordinalCase });
+                    }
+                    return Expression.Equal(leftExpression, rightExpression);
+                case TokenKind.Ceq:
+                    return Expression.Equal(leftExpression, rightExpression);
+                case TokenKind.And:
+                    return Expression.And(leftExpression, rightExpression);
+                case TokenKind.Or:
+                    return Expression.Or(leftExpression, rightExpression);
+                default:
+                    return null;
             }
-            return null;
         }
         private Expression GetExpression(ExpressionAst expAst)
         {
@@ -36,31 +50,54 @@ namespace PoshQueryable
             switch (expAst)
             {
                 case VariableExpressionAst vexp:
-                    returnValue = Expression.Constant(_sState.PSVariable.GetValue(vexp.VariablePath.ToString()));
+                    if (vexp.VariablePath.ToString().ToLower() == "$p")
+                    {
+                        returnValue = _p;
+                    }
+                    else
+                    {
+                        object value = _sState.PSVariable.GetValue(vexp.VariablePath.ToString());
+                        returnValue = Expression.Constant(value);
+                    }
                     break;
                 case MemberExpressionAst mexp:
-                    if(mexp.Expression.ToString().ToLower() == "$p")
+                    if(mexp.Expression.ToString().ToLower() == "$p" || mexp.Expression.ToString().ToLower().StartsWith("$p"))
                     {
-                        var member = mexp.Member.ToString();
-                        returnValue = Expression.Property(_p, member);
+                        var stringArray = mexp.Extent.ToString().Split('.');
+                        Type ty = typeof(T);
+                        returnValue = _p;
+                        foreach(var prop in stringArray)
+                        {
+                            if(prop.ToLower() != "$p")
+                            {
+                                var propertyInfo = ty.GetProperties().Where(p => p.Name.ToLower() == prop.ToLower()).FirstOrDefault();
+                                ty = propertyInfo.PropertyType;
+                                returnValue = Expression.Property(returnValue, propertyInfo);
+                            }
+                        }
                     }
+                    else
+                    {
+                        object value = _sState.PSVariable.GetValue(mexp.Extent.ToString());
+                        returnValue = Expression.Constant(value);
+                    }
+                    break;
+                case BinaryExpressionAst bexp:
+                    returnValue = BuildExpression(bexp);
+                    break;
+                case ConstantExpressionAst cexp:
+                    returnValue = Expression.Constant(cexp.Value);
                     break;
                 default:
                     break;
             }
             return returnValue;
         }
-        public void ConvertBinaryExpressions(List<BinaryExpressionAst> binaryExpressions)
+        public void ConvertBinaryExpression(BinaryExpressionAst binaryExpression)
         {
-            binaryExpressions.Reverse();
-            
-            foreach(var exp in binaryExpressions)
-            {
-                string dicKey = exp.Extent.ToString();
-                var bExp = BuildSelfContained(exp);
-                var l = Expression.Lambda<Func<T, bool>>(bExp, _p);
-                _inputArray = _inputArray.Where(l);
-            }
+            var bExp = BuildExpression(binaryExpression);
+            var l = Expression.Lambda<Func<T, bool>>(bExp, _p);
+            _inputArray = _inputArray.Where(l);
         }
 
         public IQueryable GetQueryable()

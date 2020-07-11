@@ -16,7 +16,6 @@ namespace PoshQueryable
     {
         public SearchQueryable()
         {
-            _binaryExpressions = new List<BinaryExpressionAst>();
         }
         [Parameter(
             Mandatory = true,
@@ -27,22 +26,22 @@ namespace PoshQueryable
             Position = 1,
             Mandatory = true)]
         public ScriptBlock Expression { get; set; }
-        private List<BinaryExpressionAst> _binaryExpressions;
+        private BinaryExpressionAst _binaryExpressionAst;
         private IPoshBinaryConverter _binaryConverter;
         protected override void BeginProcessing()
         {
             var expressions = Expression.Ast.FindAll(p => p.GetType().Name.Equals("BinaryExpressionAst"), true);
-            foreach(BinaryExpressionAst exp in expressions)
-            {
-                _binaryExpressions.Add(exp);
-            }
-            if(_binaryExpressions.Count == 0)
+            if(expressions.Count() == 0)
             {
                 throw new Exception("Error parsing expression - No binary expressions found!");
             }
-            var ienum = (IEnumerable)InputArray;
-            var qu = ienum.AsQueryable();
-            var arguments = qu.GetType().GetTypeInfo().GenericTypeArguments;
+            _binaryExpressionAst = (BinaryExpressionAst)expressions.First();
+            var qu = ((IEnumerable)InputArray).AsQueryable();
+            var arguments = InputArray.GetType().GetTypeInfo().GenericTypeArguments;
+            if(arguments.Count() == 0)
+            {
+                arguments = qu.GetType().GetTypeInfo().GenericTypeArguments;
+            }
             if (arguments.Count() > 0)
             {
                 var genericType = arguments[0];
@@ -57,7 +56,7 @@ namespace PoshQueryable
         }
         protected override void ProcessRecord()
         {
-            _binaryConverter.ConvertBinaryExpressions(_binaryExpressions);
+            _binaryConverter.ConvertBinaryExpression(_binaryExpressionAst);
         }
         protected override void EndProcessing()
         {

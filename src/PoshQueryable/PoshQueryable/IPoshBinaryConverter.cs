@@ -10,6 +10,6 @@ namespace PoshQueryable
     public interface IPoshBinaryConverter
     {
         IQueryable GetQueryable();
-        void ConvertBinaryExpressions(List<BinaryExpressionAst> binaryExpressions);
+        void ConvertBinaryExpression(BinaryExpressionAst binaryExpressions);
     }
 }
