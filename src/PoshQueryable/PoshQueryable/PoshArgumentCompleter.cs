@@ -13,9 +13,9 @@ namespace PoshQueryable
 {
     public static class PoshArgumentCompleter
     {
-        public static object GetGenericObject(object InputArray)
+        public static object GetGenericObject(PSObject InputArray)
         {
-            var ienum = (IEnumerable)InputArray;
+            var ienum = (IEnumerable)InputArray.BaseObject;
             var qu = ienum.AsQueryable();
             var arguments = qu.GetType().GetTypeInfo().GenericTypeArguments;
             if (arguments.Count() > 0)

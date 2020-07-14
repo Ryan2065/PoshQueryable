@@ -12,7 +12,6 @@ namespace PoshQueryable
     {
         private IQueryable<T> _inputArray;
         private ParameterExpression _p;
-        private BinaryExpression _binExp;
         private SessionState _sState;
         public PoshBinaryConverter(IQueryable<T> InputArray, SessionState sState)
         {
@@ -40,6 +39,22 @@ namespace PoshQueryable
                     return Expression.And(leftExpression, rightExpression);
                 case TokenKind.Or:
                     return Expression.Or(leftExpression, rightExpression);
+                case TokenKind.Ccontains:
+                case TokenKind.Icontains:
+                    var method = leftExpression.Type.GetMethods().Where(p => p.Name == "Contains" && p.GetParameters().Count() == 1).FirstOrDefault();
+                    return Expression.Call(leftExpression, method, rightExpression);
+                case TokenKind.Ige:
+                case TokenKind.Cge:
+                    return Expression.GreaterThanOrEqual(leftExpression, rightExpression);
+                case TokenKind.Igt:
+                case TokenKind.Cgt:
+                    return Expression.GreaterThan(leftExpression, rightExpression);
+                case TokenKind.Ilt:
+                case TokenKind.Clt:
+                    return Expression.LessThan(leftExpression, rightExpression);
+                case TokenKind.Ile:
+                case TokenKind.Cle:
+                    return Expression.LessThanOrEqual(leftExpression, rightExpression);
                 default:
                     return null;
             }
@@ -50,7 +65,7 @@ namespace PoshQueryable
             switch (expAst)
             {
                 case VariableExpressionAst vexp:
-                    if (vexp.VariablePath.ToString().ToLower() == "$p")
+                    if (vexp.VariablePath.ToString().ToLower() == "$_")
                     {
                         returnValue = _p;
                     }
@@ -61,14 +76,14 @@ namespace PoshQueryable
                     }
                     break;
                 case MemberExpressionAst mexp:
-                    if(mexp.Expression.ToString().ToLower() == "$p" || mexp.Expression.ToString().ToLower().StartsWith("$p"))
+                    if(mexp.Expression.ToString().ToLower() == "$_" || mexp.Expression.ToString().ToLower().StartsWith("$_"))
                     {
                         var stringArray = mexp.Extent.ToString().Split('.');
                         Type ty = typeof(T);
                         returnValue = _p;
                         foreach(var prop in stringArray)
                         {
-                            if(prop.ToLower() != "$p")
+                            if(prop.ToLower() != "$_")
                             {
                                 var propertyInfo = ty.GetProperties().Where(p => p.Name.ToLower() == prop.ToLower()).FirstOrDefault();
                                 ty = propertyInfo.PropertyType;
@@ -80,6 +95,14 @@ namespace PoshQueryable
                     {
                         object value = _sState.PSVariable.GetValue(mexp.Extent.ToString());
                         returnValue = Expression.Constant(value);
+                    }
+                    break;
+                case ParenExpressionAst pExp:
+                    PipelineAst pipeAst = (PipelineAst)pExp.Pipeline;
+                    if(pipeAst.PipelineElements[0] is CommandExpressionAst)
+                    {
+                        var cExp = (CommandExpressionAst)pipeAst.PipelineElements[0];
+                        returnValue = GetExpression(cExp.Expression);
                     }
                     break;
                 case BinaryExpressionAst bexp:

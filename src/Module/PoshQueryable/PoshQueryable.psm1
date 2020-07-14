@@ -16,6 +16,6 @@ Register-ArgumentCompleter -CommandName Search-Queryable -ParameterName Expressi
                 return
             }
         }
-        $Script:p = $obj
+        $Script:_ = $obj
     }
 }

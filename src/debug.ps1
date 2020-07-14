@@ -17,7 +17,7 @@ Register-ArgumentCompleter -CommandName Search-Queryable -ParameterName Expressi
                 return
             }
         }
-        $Script:p = $obj
+        $Script:_ = $obj
     }
 }
 
@@ -31,7 +31,7 @@ Class TypeTwo{
     [int]$Count
 }
 
-[System.Collections.Generic.List[TypeTwo]]$List = New-Object System.Collections.Generic.List[TypeTwo]
+$List = New-Object System.Collections.Generic.List[TypeTwo]
 0..100 | ForEach-Object {
     $one = [TypeOne]::new()
     $one.Key = "a$_"
@@ -40,35 +40,13 @@ Class TypeTwo{
     $two.Count = $_
     $List.Add($two)
 }
+$one = [TypeOne]::new()
+$one.Key = "a2"
+$two = [TypeTwo]::new()
+$two.One = $one
+$two.Count = 4
+$List.Add($two)
 
-Search-Queryable -inputArray $List -Expression { $p.One.key -eq 'a5' -or $p.One.Key -eq 'A6' }
+Search-Queryable -inputArray $List -Expression { $_.One.Key -eq 'a1' -or ( ($_.One.Key -eq 'a2') -and ($_.Count -eq 2) ) }
 
 return
-
-Write-Host "Invoking: Where-Object"
-    $Measure = Measure-Command {
-        $InputObjects | Where-Object { $_.Key -eq "5000" }
-    }
-    Write-Host "ExecutionTime: $($Measure.TotalSeconds)`r`n"
-
-Write-Host "Invoking: .Where()"
-    $Measure = Measure-Command {
-        $InputObjects.Where({ $_.Key -eq "5000" })
-    }
-    Write-Host "ExecutionTime: $($Measure.TotalSeconds)`r`n"
-
-Write-Host "Invoking: [System.Linq.Enumerable]::Where()"
-    $Measure = Measure-Command {
-        [System.Linq.Enumerable]::Where($InputObjects, [Func[[System.Collections.Generic.KeyValuePair[string, int]],bool]]{ param($x) $x.Key -eq "5000" })
-    }
-    Write-Host "ExecutionTime: $($Measure.TotalSeconds)`r`n"
-
-Write-Host "Invoking: cmdlet Search-Queryable"
-    $Measure = Measure-Command {
-        $y = '59'
-        $result = Search-Queryable -inputArray $InputObjects -Expression { $p.Key -eq $y }
-        $result
-    }
-    Write-Host "ExecutionTime: $($Measure.TotalSeconds)`r`n"
-
-

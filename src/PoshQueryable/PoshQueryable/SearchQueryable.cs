@@ -20,7 +20,7 @@ namespace PoshQueryable
         [Parameter(
             Mandatory = true,
             Position = 0)]
-        public object InputArray { get; set; }
+        public PSObject InputArray { get; set; }
 
         [Parameter(
             Position = 1,
@@ -36,8 +36,8 @@ namespace PoshQueryable
                 throw new Exception("Error parsing expression - No binary expressions found!");
             }
             _binaryExpressionAst = (BinaryExpressionAst)expressions.First();
-            var qu = ((IEnumerable)InputArray).AsQueryable();
-            var arguments = InputArray.GetType().GetTypeInfo().GenericTypeArguments;
+            var qu = ((IEnumerable)InputArray.BaseObject).AsQueryable();
+            var arguments = InputArray.BaseObject.GetType().GetTypeInfo().GenericTypeArguments;
             if(arguments.Count() == 0)
             {
                 arguments = qu.GetType().GetTypeInfo().GenericTypeArguments;
